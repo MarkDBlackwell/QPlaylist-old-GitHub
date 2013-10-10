@@ -24,7 +24,7 @@ xml-simple
 =end
 
 require 'xmlsimple'
-# require 'yaml'
+require 'yaml'
 
 module Playlist
   NON_XML_KEYS = %w[ Current\ Time ]
@@ -37,8 +37,9 @@ module Playlist
 
     def initialize
       get_non_xml_values
-      get_xml_values unless defined? @@xml_values
-      @values = @@non_xml_values + @@xml_values
+      get_xml_values_latest_five unless defined? @@xml_values_latest_five
+      get_xml_values_now_playing unless defined? @@xml_values_now_playing
+      @values = @@non_xml_values + @@xml_values_latest_five + @@xml_values_now_playing
     end
 
     protected
@@ -54,16 +55,22 @@ module Playlist
       end
     end
 
-    def get_xml_values
-      relevant_hash = xml_tree['Events'].first['SS32Event'].first
-      @@xml_values = XML_KEYS.map{|k| relevant_hash[k].first.strip}
+    def get_xml_values_latest_five
+      relevant_hash = xml_tree('latest-five')['Events'].first['SS32Event'].first
+#     @@xml_values_latest_five = XML_KEYS.map{|k| relevant_hash[k].first.strip}
+      @@xml_values_latest_five = []
     end
 
-    def xml_tree
+    def get_xml_values_now_playing
+      relevant_hash = xml_tree('now-playing')['Events'].first['SS32Event'].first
+      @@xml_values_now_playing = XML_KEYS.map{|k| relevant_hash[k].first.strip}
+    end
+
+    def xml_tree(s)
 # See http://xml-simple.rubyforge.org/
-      result = XmlSimple.xml_in 'input.xml', { KeyAttr: 'name' }
+      result = XmlSimple.xml_in "input-#{s}.xml", { KeyAttr: 'name' }
 #     puts result
-#     print result.to_yaml
+      print result.to_yaml if 'latest-five' == s
       result
     end
   end

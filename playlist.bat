@@ -20,8 +20,9 @@ rem %~p0 is the path to the script.
 c:
 rem %Change to the batch file's directory:
 cd %~p0
-start /wait cmd /C copy /Y z:\NowPlaying.xml input.xml
 start /wait cmd /C copy /Y z:\NowPlaying\Template.html template.html
+start /wait cmd /C copy /Y z:\NowPlaying.XML input-now-playing.xml
+start /wait cmd /C copy /Y z:\5played.XML input-latest-five.xml
 start /wait cmd /C ruby playlist.rb
 start /wait cmd /C copy /Y output.html z:\NowPlaying\NowPlaying.html
 
