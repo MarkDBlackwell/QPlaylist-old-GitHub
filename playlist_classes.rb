@@ -8,92 +8,8 @@ module Playlist
       XML_KEYS = %w[ artist title ]
   KEYS = NON_XML_KEYS + XML_KEYS
 
-  class Snapshot
-    attr_reader :values
-
-    def initialize
-      get_non_xml_values
-      get_xml_values unless defined? @@xml_values
-      @values = @@non_xml_values + @@xml_values
-    end
-
-    protected
-
-    def get_non_xml_values
-      @@non_xml_values = NON_XML_KEYS.map do |k|
-        case k
-        when 'current_time'
-          Time.now.localtime.round.strftime '%-l:%M %p'
-        else
-          "(Error: key '#{k}' unknown)"
-        end
-      end
-    end
-
-    def get_xml_values
-      relevant_hash = xml_tree['Events'].first['SS32Event'].first
-      @@xml_values = XML_KEYS.map(&:capitalize).map{|k| relevant_hash[k].first.strip}
-    end
-
-    def xml_tree
-# See http://xml-simple.rubyforge.org/
-      result = XmlSimple.xml_in 'now_playing.xml', { KeyAttr: 'name' }
-#     puts result
-#     print result.to_yaml
-      result
-    end
-  end #class
-
-  class Substitutions
-    def initialize(fields, current_values)
-      @substitutions = fields.zip current_values
-    end
-
-    def run(s)
-      @substitutions.each do |input,output|
-#print '[input,output]='; p [input,output]
-        safe_output = CGI.escape_html output
-        s = s.gsub input, safe_output
-      end
-      s
-    end
-  end #class
-
-  class NowPlayingSubstitutions < Substitutions
-    def initialize(current_values)
-      fields = KEYS.map{|e| "{{#{e}}}"}
-      super fields, current_values
-    end
-  end #class
-
-  class LatestFiveSubstitutions < Substitutions
-    def initialize(current_values)
-      key_types = %w[ start_time artist title ]
-      count = 5
-      fields = (1..count).map(&:to_s).product(key_types).map{|digit,key| "{{#{key}#{digit}}}"}
-#print 'fields='; p fields
-      super fields, current_values
-    end
-  end #class
-
-  class Songs < Mustache
-    def initialize(a)
-      @array_of_hashed_songs = a
-    end
-
-    def songs
-      @array_of_hashed_songs
-    end
-  end #class
-
   class Run
-    def build_recent(f_recent_songs, currently_playing)
-      input_file  = 'recent_songs.mustache'
-      output_file = 'recent_songs.html'
-    end
-
     def compare_recent(currently_playing)
-      remembered, artist_title, same = nil, nil, nil # Define in scope.
       File.open 'current-song.txt', 'r+' do |f_current_song|
         remembered = f_current_song.readlines.map &:chomp
         artist_title = currently_playing.drop 1
@@ -103,8 +19,8 @@ module Playlist
           f_current_song.truncate 0
           artist_title.each{|e| f_current_song.print "#{e}\n"}
         end
+        return same ? 'same' : nil
       end
-      same ? 'same' : nil
     end
 
     def create_output(substitutions, input_template_file, output_file)
@@ -140,6 +56,31 @@ module Playlist
       end
     end
 
+    def do_not_same(now_playing)
+      dates, times, artists, titles = recent_songs_get now_playing
+      latest_five = latest_five_songs_get times, artists, titles
+#print 'latest_five='; p latest_five
+      latest_five_substitutions = Playlist::SubstitutionsLatestFive.new latest_five
+#print 'latest_five_substitutions='; p latest_five_substitutions
+      create_output latest_five_substitutions, 'latest_five.mustache', 'latest_five.html'
+      create_output_recent_songs dates, times, artists, titles
+      filter_recent_songs dates, times, artists, titles
+    end
+
+    def filter_recent_songs(dates, times, artists, titles)
+      n = Time.now.localtime.round
+      year_month_day_hour_string = Time.new(n.year, n.month, n.day, n.hour).strftime '%4Y %2m %2d %2H'
+      year_month_day             = Time.new n.year, n.month, n.day
+      File.open 'current-hour.txt', 'r+' do |f_current_hour|
+        unless f_current_hour.readlines.push('').first.chomp == year_month_day_hour_string
+          recent_songs_reduce year_month_day, dates, times, artists, titles
+          f_current_hour.rewind
+          f_current_hour.truncate 0
+          f_current_hour.print "#{year_month_day_hour_string}\n"
+        end
+      end
+    end
+
     def latest_five_songs_get(times, artists, titles)
       songs_to_keep = 5
       song_count = titles.length
@@ -157,18 +98,17 @@ module Playlist
 # http://www.ruby-doc.org/core-2.0.0/IO.html#method-c-new
       n = Time.now.localtime.round
       year_month_day = Time.new(n.year, n.month, n.day).strftime '%4Y %2m %2d'
-      dates, times, artists, titles = nil, nil, nil, nil # Define in scope.
       File.open 'recent-songs.txt', 'r+' do |f_recent_songs|
         dates, times, artists, titles = recent_songs_read f_recent_songs
 # Push current song:
-        dates.push          year_month_day
+        dates.   push       year_month_day
         f_recent_songs.puts year_month_day
-        times.  push currently_playing.at 0
-        artists.push currently_playing.at 1
-        titles. push currently_playing.at 2
+        times.   push currently_playing.at 0
+        artists. push currently_playing.at 1
+        titles.  push currently_playing.at 2
         currently_playing.each{|e| f_recent_songs.print "#{e}\n"}
+        return [dates, times, artists, titles]
       end
-      [dates, times, artists, titles]
     end
 
     def recent_songs_read(f_recent_songs)
@@ -205,29 +145,115 @@ module Playlist
 
     def run
       now_playing = Playlist::Snapshot.new.values
-      now_playing_substitutions = Playlist::NowPlayingSubstitutions.new now_playing
+      now_playing_substitutions = Playlist::SubstitutionsNowPlaying.new now_playing
       create_output now_playing_substitutions, 'now_playing.mustache', 'now_playing.html'
+      do_not_same now_playing unless 'same' == (compare_recent now_playing)
+    end
+  end #class
 
-      unless 'same' == (compare_recent now_playing)
-        dates, times, artists, titles = recent_songs_get now_playing
-        latest_five = latest_five_songs_get times, artists, titles
-#print 'latest_five='; p latest_five
-        latest_five_substitutions = Playlist::LatestFiveSubstitutions.new latest_five
-#print 'latest_five_substitutions='; p latest_five_substitutions
-        create_output latest_five_substitutions, 'latest_five.mustache', 'latest_five.html'
-        create_output_recent_songs dates, times, artists, titles
-        n = Time.now.localtime.round
-        year_month_day_hour_string = Time.new(n.year, n.month, n.day, n.hour).strftime '%4Y %2m %2d %2H'
-        year_month_day             = Time.new n.year, n.month, n.day
-        File.open 'current-hour.txt', 'r+' do |f_current_hour|
-          unless f_current_hour.readlines.push('').first.chomp == year_month_day_hour_string
-            recent_songs_reduce year_month_day, dates, times, artists, titles
-            f_current_hour.rewind
-            f_current_hour.truncate 0
-            f_current_hour.print "#{year_month_day_hour_string}\n"
-          end
+  class Snapshot
+    attr_reader :values
+
+    def initialize
+      @@non_xml_values = ValuesNonXml.new.values
+      xml = XmlRead.new.xml
+      @@xml_values = ValuesXml.new(xml).values unless defined? @@xml_values
+      @values = @@non_xml_values + @@xml_values
+    end
+  end #class
+
+  class Songs < Mustache
+    attr_reader :songs
+
+    def initialize(array_of_hashed_songs)
+      @songs = array_of_hashed_songs
+    end
+  end #class
+
+  class Substitutions
+    def initialize(fields, current_values)
+      @substitutions = fields.zip current_values
+    end
+
+    def run(s)
+      @substitutions.each do |input,output|
+#print '[input,output]='; p [input,output]
+        safe_output = CGI.escape_html output
+        s = s.gsub input, safe_output
+      end
+      s
+    end
+  end #class
+
+  class SubstitutionsLatestFive < Substitutions
+    def initialize(current_values)
+      key_types = %w[ start_time artist title ]
+      count = 5
+      fields = (1..count).map(&:to_s).product(key_types).map{|digit,key| "{{#{key}#{digit}}}"}
+#print 'fields='; p fields
+      super fields, current_values
+    end
+  end #class
+
+  class SubstitutionsNowPlaying < Substitutions
+    def initialize(current_values)
+      fields = KEYS.map{|e| "{{#{e}}}"}
+      super fields, current_values
+    end
+  end #class
+
+  class ValuesNonXml
+    attr_reader :values
+
+    def initialize
+      @values = NON_XML_KEYS.map do |k|
+        case k
+        when 'current_time'
+          Time.now.localtime.round.strftime '%-l:%M %p'
+        else
+          "(Error: key '#{k}' unknown)"
         end
       end
     end
-  end #class
+  end
+
+  class ValuesXml
+    attr_reader :values
+
+    def initialize(xml)
+      tree = XmlTree.new(xml).tree
+      h = XmlRelevantHash.new(tree).relevant_hash
+      @values = XML_KEYS.map(&:capitalize).map{|k| h[k].first.strip}
+    end
+  end
+
+  class XmlRead
+    attr_reader :xml
+
+    def initialize
+      File.open 'now_playing.xml', 'r' do |f_xml|
+        @xml = f_xml.read
+      end
+    end
+  end
+
+  class XmlRelevantHash
+    attr_reader :relevant_hash
+
+    def initialize(tree)
+      @relevant_hash = tree['Events'].first['SS32Event'].first
+    end
+  end
+
+  class XmlTree
+    attr_reader :tree
+
+    def initialize(xml)
+# See http://xml-simple.rubyforge.org/
+# http://search.cpan.org/~grantm/XML-Simple-2.20/lib/XML/Simple.pm
+      @tree = XmlSimple.xml_in xml, { KeyAttr: 'name' }
+#     puts @tree
+#     print @tree.to_yaml
+    end
+  end
 end #module
