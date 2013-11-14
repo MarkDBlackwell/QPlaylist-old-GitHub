@@ -1,12 +1,13 @@
+/DriveD/
 /current-hour.txt
 /current-song.txt
-/now_playing.xml
 /latest_five.html
 /latest_five.mustache
 /now_playing.html
-/recent_songs.html
+/now_playing.mustache
+/now_playing.xml
 /recent-songs.txt
+/recent_songs.html
 /recent_songs.mustache
 /song-template.html
-/now_playing.mustache
 old-*
