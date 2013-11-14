@@ -16,13 +16,15 @@ Const CreateIfNotExist = True
 Const ForWriting = 2
 Const FN = "\\HOLMES\D\NowPlaying.xml"
 Const OpenAsAscii = 0
-Const promptPrefix = "Current Song "
+Const PromptPrefix = "Current Song "
 
 Dim filesys, outputTextStream
 Dim n
 Dim stringOne, stringTwo, stringThree
 Dim artist, title
 Dim xmlOutputString
+Dim startupMessage
+Dim promptArtist, promptTitle
 
 n = Chr(13) & Chr(10)
 
@@ -56,28 +58,35 @@ _
 "</Events>"                 & n & _
 "</NowPlaying>"
 
-WScript.StdOut.Write _
-"Website Playlist Manual Update Program." & n & n & _
+startupMessage = _
+"Website Playlist Manual Update Program. " & _
+"Hit Ctrl-C to end." & n & n & _
 "Please enter..." & n
 
-WScript.StdOut.Write _
-promptPrefix & _
-"Title: "
-title = WScript.StdIn.ReadLine
+promptArtist = PromptPrefix & "Artist: "
+promptTitle  = PromptPrefix &  "Title: "
 
-WScript.StdOut.Write _
-promptPrefix & _
-"Artist: "
-artist = WScript.StdIn.ReadLine
-
-xmlOutputString = _
-stringOne    & title  & _
-stringTwo    & artist & _
-stringThree  & n
+WScript.StdOut.Write startupMessage
 
 Set filesys = CreateObject("Scripting.FileSystemObject")
-Set outputTextStream = filesys.OpenTextFile(FN, ForWriting, CreateIfNotExist, OpenAsAscii)
 
-outputTextStream.Write xmlOutputString
+Do While True
+  WScript.StdOut.Write promptTitle
+  title = WScript.StdIn.ReadLine
 
-WScript.StdOut.Write "Done"
+  WScript.StdOut.Write promptArtist
+  artist = WScript.StdIn.ReadLine
+
+  xmlOutputString = _
+  stringOne    & title  & _
+  stringTwo    & artist & _
+  stringThree  & n
+
+  Set outputTextStream = filesys.OpenTextFile(FN, ForWriting, CreateIfNotExist, OpenAsAscii)
+
+  outputTextStream.Write xmlOutputString
+
+  outputTextStream.Close
+
+  WScript.StdOut.Write "Updated." & n & n
+Loop
