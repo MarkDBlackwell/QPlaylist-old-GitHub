@@ -3,9 +3,13 @@ rem Change dates:
 rem November 13, 2013 - created
 rem
 rem Usage:
-rem   live-update.vbs
+rem   live-update.vbs {file path of WideOrbit-generated file, NowPlaying.xml}
 rem Usage example:
-rem   live-update.vbs
+rem   live-update.vbs "\\HOLMES\D\NowPlaying.xml"
+rem
+rem BTW, WideOrbit is a large software system
+rem used in radio station automation.
+rem
 rem==============
 rem References:
 rem   http://www.devguru.com/technologies/VBScript/14075
@@ -14,11 +18,15 @@ rem   http://wiki.mcneel.com/developer/vbsstatements
 
 Const CreateIfNotExist = True
 Const ForWriting = 2
-Const FN = "\\HOLMES\D\NowPlaying.xml"
 Const OpenAsAscii = 0
 Const PromptPrefix = "Current Song "
+Const MessageTerminating = "...terminating."
+Const FilePathArgumentPosition = 0
+Const ErrorExitCodeMissingArgument = 1
+Const ErrorExitCodeFilePathBad = 2
+Const ErrorExitCodeFileNonexistent = 3
 
-Dim filesys, outputTextStream
+Dim filesys, filePath, outputTextStream
 Dim n
 Dim stringOne, stringTwo, stringThree
 Dim artist, title
@@ -66,9 +74,32 @@ startupMessage = _
 promptArtist = PromptPrefix & "Artist: "
 promptTitle  = PromptPrefix &  "Title: "
 
-WScript.StdOut.Write startupMessage
+If WScript.Arguments.Count < 1 Then
+    WScript.StdOut.Write _
+    "The required command-line argument is missing" & _
+    MessageTerminating & n
+    WScript.Quit(ErrorExitCodeMissingArgument)
+End If
 
 Set filesys = CreateObject("Scripting.FileSystemObject")
+
+rem Set filePath to something like:
+rem "\\HOLMES\D\NowPlaying.xml"
+
+filePath = WScript.Arguments(FilePathArgumentPosition)
+rem WScript.StdOut.Write filePath & n
+
+rem Normally, this file will exist, already.
+rem (So, this check helps us to validate the argument.):
+
+If Not filesys.FileExists(filePath) Then
+    WScript.StdOut.Write _
+    "Specified by a command-line argument, the file is nonexistent" & _
+    MessageTerminating & n
+    WScript.Quit(ErrorExitCodeFileNonexistent)
+End If
+
+WScript.StdOut.Write startupMessage
 
 Do While True
   WScript.StdOut.Write promptTitle
@@ -82,7 +113,7 @@ Do While True
   stringTwo    & artist & _
   stringThree  & n
 
-  Set outputTextStream = filesys.OpenTextFile(FN, ForWriting, CreateIfNotExist, OpenAsAscii)
+  Set outputTextStream = filesys.OpenTextFile(filePath, ForWriting, CreateIfNotExist, OpenAsAscii)
 
   outputTextStream.Write xmlOutputString
 
