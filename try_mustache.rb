@@ -26,7 +26,7 @@ class Songs < Mustache
   end
 end
 
-Songs.template_file = './recent_songs.moustache'
+Songs.template_file = './recent_songs.mustache'
 names = %w[ artist day hour minute month time title year ]
 print 'names='; p names
 songs = (1..2).map{ Song.new(*names).value}
