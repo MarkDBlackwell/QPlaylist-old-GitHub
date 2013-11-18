@@ -14,26 +14,40 @@ module Playlist
   LATEST_FIVE_LENGTH = 5
   LATEST_FIVE_KEY_TABLE = (0...LATEST_FIVE_LENGTH).to_a.product FOURTH_KEY_LIST
 
+  module MustacheClasses
+    class Songs < ::Mustache
+      attr_reader :songs
+
+      def initialize(array_of_hashed_songs) @songs = array_of_hashed_songs end
+    end
+  end
+
   class MyDataAccess
-    def current_hour_read() basic_array_read 'current-hour.txt' end
+    def self.current_hour_read() basic_array_read 'current-hour.txt' end
 
-    def current_hour_write(s) basic_write 'current-hour.txt', s end
+    def self.current_hour_write(s) basic_write 'current-hour.txt', s end
 
-    def current_song_read() basic_array_read 'current-song.txt' end
+    def self.current_song_read() basic_array_read 'current-song.txt' end
 
-    def recent_songs_append(s) basic_append 'recent-songs.txt', s end
+    def self.current_song_write(s) basic_write 'current-song.txt', s end
 
-    def recent_songs_get_songs_read() basic_array_read 'recent-songs.txt' end
+    def self.output_write(filename, s) basic_write filename, s end
 
-    def recent_songs_reduce_write(s) basic_write 'recent-songs.txt', s end
+    def self.recent_songs_append(s) basic_append 'recent-songs.txt', s end
+
+    def self.recent_songs_get_songs_read() basic_array_read 'recent-songs.txt' end
+
+    def self.recent_songs_reduce_write(s) basic_write 'recent-songs.txt', s end
+
+    def self.recent_songs_write(s) basic_write 'recent_songs.html', s end
 
     private
 
-    def basic_append(filename, s) MyFile.file_append filename, s end
+    def self.basic_append(filename, s) MyFile.file_append filename, s end
 
-    def basic_array_read(filename) MyFile.file_readlines_chomp filename end
+    def self.basic_array_read(filename) MyFile.file_readlines_chomp filename end
 
-    def basic_write(filename, s) MyFile.file_write filename, s end
+    def self.basic_write(filename, s) MyFile.file_write filename, s end
   end
 
   class MyFile
@@ -82,19 +96,12 @@ module Playlist
       artist_title = currently_playing.values.drop 1
       remembered = MyDataAccess.current_song_read
       same = remembered == artist_title
-      current_song_write artist_title unless same
+      MyDataAccess.current_song_write current_song_string artist_title unless same
       same
     end
 
-    def current_song_write(artist_title) MyFile.file_write 'current-song.txt', MyFile.terminate_join artist_title end
+    def current_song_string(artist_title) MyFile.terminate_join artist_title end
 
-    def year_month_day_hour_info
-      n = MyTime.time_now
-      [   MyTime.year_month_day             n ].push \
-          MyTime.year_month_day_hour_string n
-    end
-
-    def current_song_write(artist_title) MyFile.file_write 'current-song.txt',
     def filter_recent_songs(songs) filter_recent_songs_write *year_month_day_hour_info, songs end
 
     def filter_recent_songs_write(year_month_day, year_month_day_hour_string, songs)
@@ -120,11 +127,17 @@ module Playlist
       padded_songs.take LATEST_FIVE_LENGTH
     end
 
-    def output_create(substitutions, template, output) output_write output, (MyFile.file_read template), substitutions end
+    def output_create(substitutions, template, output)
+      input = MyFile.file_read template
+      s = output_string input, substitutions
+      MyDataAccess.output_write output, s
+    end
 
-    def output_create_recent_songs(songs) recent_songs_write recent_songs_supplement songs end
+    def output_create_recent_songs(songs)
+      MyDataAccess.recent_songs_write recent_songs_string recent_songs_supplement songs
+    end
 
-    def output_write(filename, s, substitutions) MyFile.file_write filename, substitutions.run s end
+    def output_string(input, substitutions) substitutions.run input end
 
     def recent_songs_get(currently_playing)
       now = MyTime.year_month_day_string_now
@@ -148,13 +161,17 @@ module Playlist
     end
 
     def recent_songs_reduce(songs, comparison_date)
-      big_array = []
-      songs.each do |song|
+      keep_songs = songs.reject do |song|
         year, month, day = song['date'].split(' ').map &:to_i
         song_time = ::Time.new year, month, day
-        big_array.push song.values_at SECOND_KEY_LIST unless song_time < comparison_date
+        song_time < comparison_date
       end
-      MyFile.terminate_join big_array.flatten
+      MyFile.terminate_join keep_songs.map{|e| e.values_at SECOND_KEY_LIST}.flatten
+    end
+
+    def recent_songs_string(full_songs)
+      MustacheClasses::Songs.template_file = './recent_songs.mustache'
+      MustacheClasses::Songs.new(full_songs.reverse).render
     end
 
     def recent_songs_supplement(songs)
@@ -167,15 +184,17 @@ module Playlist
       end
     end
 
-    def recent_songs_write(full_songs)
-      Songs.template_file = './recent_songs.mustache'
-      MyFile.file_write 'recent_songs.html', Songs.new(full_songs.reverse).render
-    end
-
     def run
       now_playing = Snapshot.new.song
-      output_create (Substitutions.new now_playing), 'now_playing.mustache', 'now_playing.html'
+      substitutions = Substitutions.new now_playing
+      output_create substitutions, 'now_playing.mustache', 'now_playing.html'
       handle_change_maybe now_playing
+    end
+
+    def year_month_day_hour_info
+      n = MyTime.time_now
+      [   MyTime.year_month_day             n ].push \
+          MyTime.year_month_day_hour_string n
     end
   end #class
 
@@ -193,12 +212,6 @@ module Playlist
     attr_reader :song
 
     def initialize(hash) @song = hash end
-  end
-
-  class Songs < ::Mustache
-    attr_reader :songs
-
-    def initialize(array_of_hashed_songs) @songs = array_of_hashed_songs end
   end
 
   class Substitutions
