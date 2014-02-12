@@ -10,3 +10,8 @@
 /song-template.html
 /now_playing.moustache
 old-*
+
+/DriveD/
+/latest_five.mustache
+/now_playing.mustache
+/recent_songs.mustache
