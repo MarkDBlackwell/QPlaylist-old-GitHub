@@ -10,3 +10,12 @@
 /song-template.html
 /template.html
 old-*
+
+/DriveD/
+/latest_five.html
+/latest_five.mustache
+/now_playing.html
+/now_playing.mustache
+/now_playing.xml
+/recent_songs.html
+/recent_songs.mustache
