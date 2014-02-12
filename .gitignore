@@ -1,3 +1,16 @@
 /input.xml
 /output.html
 /template.html
+
+old-*
+/DriveD/
+/current-hour.txt
+/current-song.txt
+/latest_five.html
+/latest_five.mustache
+/now_playing.html
+/now_playing.mustache
+/now_playing.xml
+/recent-songs.txt
+/recent_songs.html
+/recent_songs.mustache
