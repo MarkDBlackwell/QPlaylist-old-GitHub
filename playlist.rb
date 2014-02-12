@@ -9,24 +9,7 @@ November 11, 2013 - Generate recent songs in HTML
 
 Description:
 
-BTW, WideOrbit is a large software system
-used in radio station automation.
-
-This program, along with its input and output files,
-and a Windows batch file, all reside in the same directory.
-
-The program converts the desired information
-(about whatever song is now playing)
-from a certain XML file format, produced by WideOrbit,
-into an HTML format, suitable for a webpage's iFrame.
-
-The program reads an HTML template file,
-substitutes the XML file's information into it,
-and thereby produces its output HTML file.
-
-Required gems:
-mustache
-xml-simple
+See README.md.
 =end
 
 require './playlist_classes'
