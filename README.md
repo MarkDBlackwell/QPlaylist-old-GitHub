@@ -42,3 +42,5 @@ On the resulting page, click (to download) the latest (highest-numbered) Ruby 2.
 Once Ruby is installed (successfully), do this for each of the required gems, mentioned above:
 
 gem install {gem name}
+
+License: GPL 3.0.
