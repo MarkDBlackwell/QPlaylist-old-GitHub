@@ -7,6 +7,15 @@ rem   live-update.vbs {file path of WideOrbit-generated file, NowPlaying.xml}
 rem Usage example:
 rem   live-update.vbs "\\HOLMES\D\NowPlaying.xml"
 rem
+rem But really, you'll want to create a shortcut icon on the Disk Jockey's desktop to start this program.
+rem That shortcut should contain as its target:
+rem
+rem   	C:\Windows\System32\cmd.exe /K C:\Windows\System32\cscript.exe Z:\Qplaylist\live-update.vbs Z:\NowPlaying.XML
+rem
+rem     To test this, create test.XML and copy this to your Run box:
+rem
+rem     cmd /k cscript c:\QPlaylist\live-update.vbs c:\QPlaylist\test.XML
+rem
 rem BTW, WideOrbit is a large software system
 rem used in radio station automation.
 rem
@@ -15,6 +24,9 @@ rem References:
 rem   http://www.devguru.com/technologies/VBScript/14075
 rem   http://rosettacode.org/wiki/Here_document#VBScript
 rem   http://wiki.mcneel.com/developer/vbsstatements
+rem   http://blogs.technet.com/b/heyscriptingguy/archive/2007/04/24/\
+rem     how-can-i-get-the-command-window-to-stay-open-when-i-right-click-a-script-and-choose-open-with-command-prompt.aspx
+rem   http://stackoverflow.com/questions/89465/cscript-wscript-prevent-an-error-from-being-blocking
 
 Const CreateIfNotExist = True
 Const ForWriting = 2
